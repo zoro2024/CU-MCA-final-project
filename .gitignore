@@ -57,11 +57,3 @@ Thumbs.db
 # Terraform test artifacts
 terraform.tfvars.backup
 
-# Optional: Ignore generated docs
-README.md
-
-# Optional: Ignore local modules cache
-modules/
-
-# Optional: Ignore tfsec/checkov reports
-*.sarif
