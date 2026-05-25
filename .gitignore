@@ -35,7 +35,6 @@ terraform.rc
 # .terraform.lock.hcl
 
 # Ignore environment files
-.env
 .env.*
 
 # IDE/editor files
