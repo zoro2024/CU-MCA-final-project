@@ -1,0 +1,30 @@
+namespace: loglens
+
+image: REPLACE/loglens-backend:1.0
+replicas: 2
+
+# Secret configuration: by default expect an external Secret; set create=true to create it from values
+secret:
+  create: false
+  name: loglens-secrets
+  data:
+    GEMINI_API_KEY: "replace-me"
+    DATABASE_URL: "postgresql+psycopg://loglens:loglens@postgres:5432/loglens"
+    REDIS_URL: "redis://redis:6379/0"
+
+# Resource requests/limits (optional)
+resources: {}
+
+# Service type (ClusterIP recommended)
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# Optional migration Job (will run `init_db()` if enabled)
+migrate:
+  enabled: false
+  # image to run migration; defaults to the backend image
+  image: ""
+  # extra command args appended to the python -c invocation
+  command: []

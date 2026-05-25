@@ -1,0 +1,18 @@
+namespace: loglens
+
+image: REPLACE/loglens-frontend:1.0
+replicas: 2
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 5173
+
+ingress:
+  enabled: true
+  # If you install an ingress controller, set the class name here (e.g. alb, nginx)
+  className: ""
+  host: loglens.example.in
+
+# optional resource settings
+resources: {}
