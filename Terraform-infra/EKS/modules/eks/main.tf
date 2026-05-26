@@ -41,10 +41,17 @@ resource "null_resource" "node_groups_ready" {
 }
 
 resource "aws_eks_addon" "addons" {
-  count         = var.create_node_group ? length(var.eks_addons) : 0
+  count = var.create_node_group ? length(var.eks_addons) : 0
+
   cluster_name  = aws_eks_cluster.eks_cluster.name
   addon_name    = var.eks_addons[count.index].name
   addon_version = var.eks_addons[count.index].version
+
+  # Optional IAM role for addons requiring IRSA / Pod Identity
+  service_account_role_arn = try(
+    var.eks_addons[count.index].service_account_role_arn,
+    null
+  )
 
   tags = {
     Name        = "${var.cluster_name}-${var.eks_addons[count.index].name}-addon"

@@ -161,10 +161,13 @@ variable "node_groups" {
 
 variable "eks_addons" {
   description = "List of EKS addons to install"
+
   type = list(object({
-    name    = string
-    version = string
+    name                     = string
+    version                  = string
+    service_account_role_arn = optional(string)
   }))
+
   default = []
 }
 
