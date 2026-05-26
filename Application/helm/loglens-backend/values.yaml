@@ -1,6 +1,6 @@
 namespace: loglens
 
-image: 891377358903.dkr.ecr.us-east-1.amazonaws.com/cu-final/backend:latest
+image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/backend:latest
 replicas: 1
 
 # Secret configuration: by default expect an external Secret; set create=true to create it from values
@@ -23,8 +23,8 @@ ingress:
   enabled: false
   # Ingress configuration for ALB (set enabled=true to create Ingress)
   className: alb
-  name: ingress-backend
-  host: loglens.cu-final.app
+  name: loglens-backend-ingress
+  host: loglens.dealshare.in
   path: /api
   annotations:
     kubernetes.io/ingress.class: alb

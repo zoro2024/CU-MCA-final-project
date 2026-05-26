@@ -1,6 +1,6 @@
 namespace: loglens
 
-image: 891377358903.dkr.ecr.us-east-1.amazonaws.com/cu-final/frontend:latest
+image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/frontend:latest
 replicas: 2
 
 service:
@@ -17,7 +17,7 @@ ingress:
   # Ingress configuration for ALB
   className: alb
   name: loglens-frontend-ingress
-  host: loglens.cu-final.app
+  host: loglens.dealshare.in
   annotations:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/group.name: shared-alb
