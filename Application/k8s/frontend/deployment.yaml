@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loglens-frontend
-  namespace: {{ .Values.namespace }}
+  namespace: loglens
 spec:
-  replicas: {{ .Values.replicas }}
+  replicas: 1
   selector:
     matchLabels:
       app: loglens-frontend
@@ -15,26 +15,37 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: {{ .Values.image }}
+          image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/frontend:latest
           ports:
-            - containerPort: 5173
+            - containerPort: 80
+
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/conf.d
               readOnly: true
+
           readinessProbe:
             httpGet:
-              path: /
-              port: 5173
+              path: /frontend-healthz
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
+
           livenessProbe:
             httpGet:
-              path: /
-              port: 5173
+              path: /frontend-healthz
+              port: 80
             initialDelaySeconds: 15
             periodSeconds: 20
-          resources: {{ toYaml .Values.resources | nindent 15 }}
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
       volumes:
         - name: nginx-config
           configMap:
@@ -42,3 +53,5 @@ spec:
             items:
               - key: default.conf
                 path: default.conf
+
+
