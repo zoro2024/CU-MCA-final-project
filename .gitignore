@@ -3,6 +3,10 @@
 .terraform.lock
 config
 
+# Vite
+node_modules/
+dist/
+.vite/
 
 # Terraform state files
 *.tfstate

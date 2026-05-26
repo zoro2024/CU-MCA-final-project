@@ -1,0 +1,9 @@
+auth:
+  username: loglens
+  database: loglens
+  existingSecret: postgres-secret
+
+primary:
+  persistence:
+    enabled: true
+    size: 20Gi
