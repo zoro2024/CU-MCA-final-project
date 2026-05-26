@@ -18,6 +18,10 @@ spec:
           image: {{ .Values.image }}
           ports:
             - containerPort: 5173
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /
@@ -30,4 +34,11 @@ spec:
               port: 5173
             initialDelaySeconds: 15
             periodSeconds: 20
-          resources: {{ toYaml .Values.resources | nindent 10 }}
+          resources: {{ toYaml .Values.resources | nindent 15 }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: loglens-frontend-nginx-config
+            items:
+              - key: default.conf
+                path: default.conf

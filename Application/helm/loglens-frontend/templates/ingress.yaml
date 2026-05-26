@@ -2,9 +2,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: loglens-frontend
+  name: {{ default "ingress-app1" .Values.ingress.name }}
   namespace: {{ .Values.namespace }}
-  annotations: {}
+  annotations:
+{{ toYaml .Values.ingress.annotations | indent 4 }}
 spec:
   {{- if .Values.ingress.className }}
   ingressClassName: {{ .Values.ingress.className | quote }}
@@ -13,18 +14,38 @@ spec:
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
-          - path: /api
+          {{- if .Values.ingress.api.enabled }}
+          - path: {{ .Values.ingress.api.path | quote }}
             pathType: Prefix
             backend:
               service:
-                name: loglens-backend
+                name: {{ .Values.ingress.api.service.name | quote }}
                 port:
-                  number: 80
+                  number: {{ .Values.ingress.api.service.port }}
+          {{- end }}
+          {{- if .Values.ingress.health.enabled }}
+          - path: {{ .Values.ingress.health.path | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.ingress.health.service.name | quote }}
+                port:
+                  number: {{ .Values.ingress.health.service.port }}
+          {{- end }}
+          {{- if .Values.ingress.fixedResponse.enabled }}
+          - path: {{ .Values.ingress.fixedResponse.path | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.ingress.fixedResponse.name | quote }}
+                port:
+                  name: use-annotation
+          {{- end }}
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: loglens-frontend
+                name: {{ .Values.ingress.frontend.service.name | quote }}
                 port:
-                  number: 80
+                  number: {{ .Values.ingress.frontend.service.port }}
 {{- end }}

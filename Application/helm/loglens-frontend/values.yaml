@@ -1,6 +1,6 @@
 namespace: loglens
 
-image: REPLACE/loglens-frontend:1.0
+image: 891377358903.dkr.ecr.us-east-1.amazonaws.com/cu-final/frontend:latest
 replicas: 2
 
 service:
@@ -8,11 +8,56 @@ service:
   port: 80
   targetPort: 5173
 
+backend:
+  host: loglens-backend
+  port: 8000
+
 ingress:
   enabled: true
-  # If you install an ingress controller, set the class name here (e.g. alb, nginx)
-  className: ""
-  host: loglens.example.in
+  # Ingress configuration for ALB
+  className: alb
+  name: ingress-app1
+  host: loglens.cu-final.app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: shared-alb
+    alb.ingress.kubernetes.io/load-balancer-name: shared-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/actions.fixed-response: |
+      {"Type":"fixed-response","FixedResponseConfig":{"MessageBody":"Backend service does not exist","StatusCode":"503","ContentType":"text/plain"}}
+  backend:
+    service:
+      name: loglens-backend
+      port: 80
+
+  api:
+    enabled: true
+    path: /api
+    # service the /api path should forward to
+    service:
+      name: loglens-backend
+      port: 80
+
+  frontend:
+    service:
+      name: loglens-frontend
+      port: 80
+  health:
+    enabled: true
+    path: /healthz
+    service:
+      name: loglens-backend
+      port: 80
+
+  fixedResponse:
+    enabled: false
+    name: fixed-response
+    # path is matched as a Prefix; use "/" to match all paths
+    path: /
+    statusCode: "503"
+    message: "Backend service does not exist"
+    contentType: "text/plain"
 
 # optional resource settings
 resources: {}

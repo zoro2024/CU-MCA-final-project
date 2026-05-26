@@ -1,16 +1,14 @@
 namespace: loglens
 
-image: REPLACE/loglens-backend:1.0
-replicas: 2
+image: 891377358903.dkr.ecr.us-east-1.amazonaws.com/cu-final/backend:latest
+replicas: 1
 
 # Secret configuration: by default expect an external Secret; set create=true to create it from values
 secret:
+  # Do not create secrets from values in Helm — use external Secret manifests (recommended for Argo CD)
   create: false
   name: loglens-secrets
-  data:
-    GEMINI_API_KEY: "replace-me"
-    DATABASE_URL: "postgresql+psycopg://loglens:loglens@postgres:5432/loglens"
-    REDIS_URL: "redis://redis:6379/0"
+  data: {}
 
 # Resource requests/limits (optional)
 resources: {}
@@ -20,6 +18,20 @@ service:
   type: ClusterIP
   port: 80
   targetPort: 8000
+
+ingress:
+  enabled: false
+  # Ingress configuration for ALB (set enabled=true to create Ingress)
+  className: alb
+  name: ingress-backend
+  host: loglens.cu-final.app
+  path: /api
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: shared-alb
+    alb.ingress.kubernetes.io/load-balancer-name: shared-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
 
 # Optional migration Job (will run `init_db()` if enabled)
 migrate:
