@@ -16,7 +16,7 @@ ingress:
   enabled: true
   # Ingress configuration for ALB
   className: alb
-  name: ingress-app1
+  name: loglens-frontend-ingress
   host: loglens.cu-final.app
   annotations:
     kubernetes.io/ingress.class: alb
