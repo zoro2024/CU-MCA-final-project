@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+    disableConcurrentBuilds()
+    }
+
     environment {
         APP_NAME        = "loglens-backend"
         AWS_REGION      = "ap-south-1"
@@ -275,6 +279,8 @@ pipeline {
             sh """
                 docker rmi -f ${IMAGE_NAME} || true
             """
+            
+            cleanWs()
         }
     }
 }
