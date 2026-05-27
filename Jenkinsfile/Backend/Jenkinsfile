@@ -2,23 +2,17 @@ pipeline {
     agent any
 
     environment {
-
         APP_NAME        = "loglens-backend"
-
         AWS_REGION      = "ap-south-1"
         AWS_ACCOUNT_ID  = "432995435807"
-
         ECR_REPO        = "cu-final/${APP_NAME}"
         REGISTRY        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         ECR_URI         = "${REGISTRY}/${ECR_REPO}"
-
         APP_PATH        = "Application/backend"
         HELM_PATH       = "Application/helm/backend"
-
         GIT_REPO        = "https://github.com/zoro2024/CU-MCA-final-project.git"
         GIT_CREDENTIALS = "cu-final-akshit"
-
-        ARGOCD_APP_NAME = "backend"
+        ARGOCD_APP_NAME = "loglens-backend"
     }
 
     parameters {
@@ -213,7 +207,7 @@ pipeline {
                                 argocd login ${ARGOCD_SERVER} \
                                 --username ${ARGO_USER} \
                                 --password ${ARGO_PASS} \
-                                --insecure \
+                                --plaintext \
                                 --grpc-web \
                                 --skip-test-tls
                             """

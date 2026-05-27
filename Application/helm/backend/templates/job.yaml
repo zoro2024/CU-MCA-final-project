@@ -1,19 +1,54 @@
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: {{ .Values.job.name | default "loglens-migrate" }}
+#   namespace: {{ .Values.namespace }}
+# spec:
+#   backoffLimit: 2
+#   template:
+#     spec:
+#       restartPolicy: OnFailure
+#       containers:
+#         - name: migrate
+#           image: {{ .Values.job.imageRepository }}:{{ .Values.job.tag }}
+#           command: ["/bin/sh", "-c"]
+#           args:
+#             - python -c "from app.db import init_db; init_db()"
+#           envFrom:
+#             - secretRef:
+#                 name: loglens-secrets
+
 apiVersion: batch/v1
 kind: Job
+
 metadata:
   name: {{ .Values.job.name | default "loglens-migrate" }}
   namespace: {{ .Values.namespace }}
+
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+
 spec:
   backoffLimit: 2
+
+  ttlSecondsAfterFinished: 300
+
   template:
     spec:
       restartPolicy: OnFailure
+
       containers:
         - name: migrate
           image: {{ .Values.job.imageRepository }}:{{ .Values.job.tag }}
-          command: ["/bin/sh", "-c"]
+
+          command:
+            - /bin/sh
+            - -c
+
           args:
             - python -c "from app.db import init_db; init_db()"
+
           envFrom:
             - secretRef:
                 name: loglens-secrets
