@@ -17,7 +17,7 @@ Production-style, student-friendly companion to the Lovable web app.
 
 ```bash
 cp .env.example .env       # add GEMINI_API_KEY (free: https://aistudio.google.com/apikey)
-docker compose up --build
+docker compose up -d
 ```
 
 - Frontend: http://localhost:5173
