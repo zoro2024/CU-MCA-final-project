@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/loglens-backend
-  tag: "910005e-3"
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 service:
