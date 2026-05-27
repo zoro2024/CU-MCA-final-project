@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: loglens-backend
+  namespace: loglens
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: loglens-backend
+
+  template:
+    metadata:
+      labels:
+        app: loglens-backend
+
+    spec:
+      containers:
+      - name: backend
+        image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/backend:latest
+
+        ports:
+        - containerPort: 8000
+
+        envFrom:
+        - secretRef:
+            name: loglens-secrets
+
+  strategy:
+    canary:
+      stableService: loglens-backend-stable
+      canaryService: loglens-backend-canary
+
+      steps:
+      - setWeight: 40
+      - pause:
+          duration: 2m
+      - setWeight: 60
+      - pause:
+          duration: 2m
+      - setWeight: 100
+

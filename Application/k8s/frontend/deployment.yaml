@@ -1,57 +1,74 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: loglens-frontend
   namespace: loglens
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app: loglens-frontend
+
   template:
     metadata:
       labels:
         app: loglens-frontend
+
     spec:
       containers:
-        - name: frontend
-          image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/frontend:latest
-          ports:
-            - containerPort: 80
+      - name: frontend
+        image: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/frontend:latest
 
-          volumeMounts:
-            - name: nginx-config
-              mountPath: /etc/nginx/conf.d
-              readOnly: true
+        ports:
+        - containerPort: 80
 
-          readinessProbe:
-            httpGet:
-              path: /frontend-healthz
-              port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 10
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
 
-          livenessProbe:
-            httpGet:
-              path: /frontend-healthz
-              port: 80
-            initialDelaySeconds: 15
-            periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /frontend-healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
 
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /frontend-healthz
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
 
       volumes:
-        - name: nginx-config
-          configMap:
-            name: loglens-frontend-nginx-config
-            items:
-              - key: default.conf
-                path: default.conf
+      - name: nginx-config
+        configMap:
+          name: loglens-frontend-nginx-config
+          items:
+          - key: default.conf
+            path: default.conf
 
+  strategy:
+    canary:
+      stableService: loglens-frontend-stable
+      canaryService: loglens-frontend-canary
 
+      steps:
+      - setWeight: 40
+      - pause:
+          duration: 2m
+      - setWeight: 60
+      - pause:
+          duration: 2m
+      - setWeight: 100

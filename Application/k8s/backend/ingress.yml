@@ -1,4 +1,3 @@
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -9,17 +8,20 @@ metadata:
     alb.ingress.kubernetes.io/group.name: shared-alb
     alb.ingress.kubernetes.io/load-balancer-name: shared-alb
     alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/group.order: "10"
     alb.ingress.kubernetes.io/target-type: ip
+
 spec:
   ingressClassName: alb
+
   rules:
-    - host: loglens.dealshare.in
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: loglens-backend
-                port:
-                  number: 80
+  - host: loglens.dealshare.in
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: loglens-backend-stable
+            port:
+              number: 80
