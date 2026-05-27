@@ -3,7 +3,7 @@ namespace: loglens
 replicaCount: 1
 
 image:
-  repository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/backend
+  repository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/loglens-backend
   tag: "910005e-3"
   pullPolicy: IfNotPresent
 
