@@ -1,0 +1,6 @@
+apiVersion: v2
+name: loglens-frontend
+description: Helm chart for LogLens frontend (Argo Rollout, Service, HPA, Ingress, ConfigMap)
+type: application
+version: 0.1.0
+appVersion: "1.0"

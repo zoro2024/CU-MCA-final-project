@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: loglens-frontend
+  namespace: {{ .Values.namespace }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: loglens-frontend
+
+  template:
+    metadata:
+      labels:
+        app: loglens-frontend
+
+    spec:
+      containers:
+      - name: frontend
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+
+        readinessProbe:
+          httpGet:
+            path: /frontend-healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /frontend-healthz
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+
+        resources:
+          requests:
+            cpu: {{ .Values.resources.requests.cpu }}
+            memory: {{ .Values.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.resources.limits.cpu }}
+            memory: {{ .Values.resources.limits.memory }}
+
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: loglens-frontend-nginx-config
+          items:
+          - key: default.conf
+            path: default.conf
+
+  strategy:
+    canary:
+      stableService: {{ .Values.service.stableName }}
+      canaryService: {{ .Values.service.canaryName }}
+
+      steps:
+{{ toYaml .Values.canary.steps | nindent 6 }}

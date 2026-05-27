@@ -1,0 +1,52 @@
+namespace: loglens
+
+replicaCount: 1
+
+image:
+  repository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/backend
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  stableName: loglens-backend-stable
+  canaryName: loglens-backend-canary
+  port: 80
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+hpa:
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  host: loglens.dealshare.in
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/group.name: shared-alb
+    alb.ingress.kubernetes.io/load-balancer-name: shared-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/target-type: ip
+
+job:
+  name: loglens-migrate
+  # job uses same backend image by default
+  imageRepository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/backend
+  imageTag: "latest"
+
+canary:
+  steps:
+    - setWeight: 40
+    - pause:
+      duration: 2m
+    - setWeight: 60
+    - pause:
+      duration: 2m
+    - setWeight: 100

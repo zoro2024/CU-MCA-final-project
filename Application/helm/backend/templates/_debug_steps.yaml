@@ -1,0 +1,10 @@
+{{- /* Debug: render canary.steps as YAML for inspection */ -}}
+{{- $s := toYaml .Values.canary.steps -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debug-canary-steps
+  namespace: {{ .Values.namespace }}
+data:
+  steps.yaml: |
+{{ $s | indent 4 }}

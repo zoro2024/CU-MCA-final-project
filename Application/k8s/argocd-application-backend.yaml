@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loglens-backend
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/zoro2024/CU-MCA-final-project.git
+    targetRevision: master
+    path: Application/k8s/backend
+    helm:
+      releaseName: loglens-backend
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loglens
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

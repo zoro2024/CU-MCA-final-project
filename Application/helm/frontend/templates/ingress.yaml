@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loglens-frontend-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+{{- range $k, $v := .Values.ingress.annotations }}
+    {{ $k }}: {{ $v | quote }}
+{{- end }}
+
+spec:
+  ingressClassName: {{ default "alb" (index .Values.ingress.annotations "kubernetes.io/ingress.class") }}
+
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.service.stableName }}
+            port:
+              number: {{ .Values.service.port }}

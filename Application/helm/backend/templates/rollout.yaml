@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: loglens-backend
+  namespace: {{ .Values.namespace }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: loglens-backend
+
+  template:
+    metadata:
+      labels:
+        app: loglens-backend
+
+    spec:
+      containers:
+        - name: backend
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - containerPort: 8000
+
+          envFrom:
+            - secretRef:
+                name: loglens-secrets
+
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+  strategy:
+    canary:
+      stableService: {{ .Values.service.stableName }}
+      canaryService: {{ .Values.service.canaryName }}
+
+      steps:
+    {{- range $step := .Values.canary.steps }}
+    {{- $sw := index $step "setWeight" }}
+    {{- $p := index $step "pause" }}
+    {{- if $sw }}
+    {{ printf "- setWeight: %v" $sw | nindent 6 }}
+    {{- else if $p }}
+    {{ printf "- pause:\n    duration: %s" (index $p "duration") | nindent 6 }}
+    {{- end }}
+    {{- end }}
