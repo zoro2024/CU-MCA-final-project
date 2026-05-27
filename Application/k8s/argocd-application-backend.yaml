@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/zoro2024/CU-MCA-final-project.git
     targetRevision: master
-    path: Application/k8s/backend
+    path: Application/k8s
     helm:
       releaseName: loglens-backend
 
