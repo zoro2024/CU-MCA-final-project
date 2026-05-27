@@ -1,0 +1,286 @@
+pipeline {
+    agent any
+
+    environment {
+
+        APP_NAME        = "loglens-backend"
+
+        AWS_REGION      = "ap-south-1"
+        AWS_ACCOUNT_ID  = "432995435807"
+
+        ECR_REPO        = "cu-final/${APP_NAME}"
+        REGISTRY        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        ECR_URI         = "${REGISTRY}/${ECR_REPO}"
+
+        APP_PATH        = "Application/backend"
+        HELM_PATH       = "Application/helm/backend"
+
+        GIT_REPO        = "https://github.com/zoro2024/CU-MCA-final-project.git"
+        GIT_CREDENTIALS = "cu-final-akshit"
+
+        ARGOCD_APP_NAME = "backend"
+    }
+
+    parameters {
+
+        choice(
+            name: 'DEPLOY_TYPE',
+            choices: ['Canary Rollout', 'Rollout Existing Tag'],
+            description: 'Select deployment mode'
+        )
+
+        string(
+            name: 'BRANCH_NAME',
+            defaultValue: 'master',
+            description: 'Git branch to build'
+        )
+
+        string(
+            name: 'ROLL_OUT_TAG',
+            defaultValue: '',
+            description: 'Existing image tag for rollout'
+        )
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+
+            when {
+                expression {
+                    params.DEPLOY_TYPE == 'Canary Rollout'
+                }
+            }
+
+            steps {
+
+                git(
+                    url: "${GIT_REPO}",
+                    credentialsId: "${GIT_CREDENTIALS}",
+                    branch: "${params.BRANCH_NAME}"
+                )
+            }
+        }
+
+        stage('Set Image Variables') {
+
+            steps {
+
+                script {
+
+                    if (params.DEPLOY_TYPE == 'Canary Rollout') {
+
+                        def commitHash = sh(
+                            script: "git rev-parse --short HEAD",
+                            returnStdout: true
+                        ).trim()
+
+                        env.IMAGE_TAG = "${commitHash}-${BUILD_NUMBER}"
+
+                    } else {
+
+                        if (!params.ROLL_OUT_TAG?.trim()) {
+                            error("ROLL_OUT_TAG is required for Rollout Existing Tag")
+                        }
+
+                        env.IMAGE_TAG = params.ROLL_OUT_TAG
+                    }
+
+                    env.IMAGE_NAME = "${ECR_URI}:${IMAGE_TAG}"
+
+                    echo "Using Image: ${env.IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Login to AWS ECR') {
+
+            when {
+                expression {
+                    params.DEPLOY_TYPE == 'Canary Rollout'
+                }
+            }
+
+            steps {
+
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${REGISTRY}
+                """
+            }
+        }
+
+        stage('Build Docker Image') {
+
+            when {
+                expression {
+                    params.DEPLOY_TYPE == 'Canary Rollout'
+                }
+            }
+
+            steps {
+
+                dir("${APP_PATH}") {
+
+                    sh """
+                        docker build -t ${IMAGE_NAME} .
+                    """
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+
+            when {
+                expression {
+                    params.DEPLOY_TYPE == 'Canary Rollout'
+                }
+            }
+
+            steps {
+
+                sh """
+                    docker push ${IMAGE_NAME}
+                """
+            }
+        }
+
+        stage('Update Helm Values') {
+
+            steps {
+
+                sh """
+                    sed -i 's|tag:.*|tag: "${IMAGE_TAG}"|g' ${HELM_PATH}/values.yaml
+                """
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${GIT_CREDENTIALS}",
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASS'
+                    )
+                ]) {
+
+                    sh """
+                        git config user.name "Jenkins CI"
+                        git config user.email "jenkins@cu-final"
+
+                        git add ${HELM_PATH}/values.yaml
+
+                        git commit -m "update ${APP_NAME} image tag to ${IMAGE_TAG}" || echo "No changes"
+
+                        git remote set-url origin https://${USER}:${PASS}@github.com/zoro2024/CU-MCA-final-project.git
+
+                        git push origin ${params.BRANCH_NAME}
+                    """
+                }
+            }
+        }
+
+        stage('Sync ArgoCD Application') {
+
+            steps {
+
+                withCredentials([
+
+                    string(
+                        credentialsId: 'ARGOCD_SERVER',
+                        variable: 'ARGOCD_SERVER'
+                    ),
+
+                    string(
+                        credentialsId: 'ARGO_USER',
+                        variable: 'ARGO_USER'
+                    ),
+
+                    string(
+                        credentialsId: 'ARGO_PASS',
+                        variable: 'ARGO_PASS'
+                    ),
+
+                    usernamePassword(
+                        credentialsId: "${GIT_CREDENTIALS}",
+                        usernameVariable: 'USER',
+                        passwordVariable: 'PASS'
+                    )
+                ]) {
+
+                    script {
+
+                        try {
+
+                            sh """
+                                argocd login ${ARGOCD_SERVER} \
+                                --username ${ARGO_USER} \
+                                --password ${ARGO_PASS} \
+                                --insecure \
+                                --grpc-web \
+                                --skip-test-tls
+                            """
+
+                            sh """
+                                argocd app sync ${ARGOCD_APP_NAME}
+                            """
+
+                            sh """
+                                argocd app wait ${ARGOCD_APP_NAME} \
+                                --health \
+                                --sync \
+                                --timeout 300
+                            """
+
+                            echo "Deployment successful"
+
+                        } catch (Exception e) {
+
+                            echo "Deployment failed. Starting Git rollback..."
+
+                            sh """
+                                git remote set-url origin https://${USER}:${PASS}@github.com/zoro2024/CU-MCA-final-project.git
+
+                                LAST_COMMIT=\$(git rev-parse HEAD)
+
+                                echo "Reverting commit: \$LAST_COMMIT"
+
+                                git revert --no-edit \$LAST_COMMIT
+
+                                git push origin ${params.BRANCH_NAME}
+                            """
+
+                            sh """
+                                argocd app sync ${ARGOCD_APP_NAME}
+                            """
+
+                            sh """
+                                argocd app wait ${ARGOCD_APP_NAME} \
+                                --health \
+                                --sync \
+                                --timeout 300
+                            """
+
+                            error("Deployment failed. Rollback completed.")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo "Deployment completed successfully with image: ${env.IMAGE_NAME}"
+        }
+
+        failure {
+            echo "Pipeline failed"
+        }
+
+        always {
+
+            sh """
+                docker rmi -f ${IMAGE_NAME} || true
+            """
+        }
+    }
+}
