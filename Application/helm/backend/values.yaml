@@ -39,7 +39,7 @@ job:
   name: loglens-migrate
   # job uses same backend image by default
   imageRepository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/loglens-backend
-  Tag: "latest"
+  tag: "latest"
 
 canary:
   steps:

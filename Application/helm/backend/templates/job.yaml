@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: {{ .Values.job.imageRepository }}:{{ .Values.job.imageTag }}
+          image: {{ .Values.job.imageRepository }}:{{ .Values.job.tag }}
           command: ["/bin/sh", "-c"]
           args:
             - python -c "from app.db import init_db; init_db()"
