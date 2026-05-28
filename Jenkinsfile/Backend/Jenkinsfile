@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     options {
-    disableConcurrentBuilds()
+        disableConcurrentBuilds()
     }
 
     environment {
@@ -17,6 +17,7 @@ pipeline {
         GIT_REPO        = "https://github.com/zoro2024/CU-MCA-final-project.git"
         GIT_CREDENTIALS = "cu-final-akshit"
         ARGOCD_APP_NAME = "loglens-backend"
+        SONAR_SCANNER_HOME = tool 'prod-sonarqube'
     }
 
     parameters {
@@ -43,15 +44,11 @@ pipeline {
     stages {
 
         stage('Checkout Code') {
-
             when {
-                expression {
-                    params.DEPLOY_TYPE == 'Canary Rollout'
-                }
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
             }
 
             steps {
-
                 git(
                     url: "${GIT_REPO}",
                     credentialsId: "${GIT_CREDENTIALS}",
@@ -61,9 +58,7 @@ pipeline {
         }
 
         stage('Set Image Variables') {
-
             steps {
-
                 script {
 
                     if (params.DEPLOY_TYPE == 'Canary Rollout') {
@@ -91,16 +86,54 @@ pipeline {
             }
         }
 
-        stage('Login to AWS ECR') {
-
+        stage('Gitleaks Scan') {
             when {
-                expression {
-                    params.DEPLOY_TYPE == 'Canary Rollout'
-                }
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
             }
 
             steps {
+                sh """
+                    echo "Running Gitleaks scan..."
 
+                    gitleaks detect \
+                    --source . \
+                    --report-format json \
+                    --report-path gitleaks-report.json || true
+                """
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            when {
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
+            }
+
+            steps {
+                withSonarQubeEnv('prod-sonarqube') {
+
+                    dir("${APP_PATH}") {
+
+                        sh """
+                            export PATH=${SONAR_SCANNER_HOME}/bin:$PATH
+
+                            sonar-scanner \
+                              -Dsonar.projectKey=${APP_NAME} \
+                              -Dsonar.projectName=${APP_NAME} \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=$SONAR_HOST_URL \
+                              -Dsonar.login=$SONAR_AUTH_TOKEN
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Login to AWS ECR') {
+            when {
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
+            }
+
+            steps {
                 sh """
                     aws ecr get-login-password --region ${AWS_REGION} | \
                     docker login --username AWS --password-stdin ${REGISTRY}
@@ -109,17 +142,12 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-
             when {
-                expression {
-                    params.DEPLOY_TYPE == 'Canary Rollout'
-                }
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
             }
 
             steps {
-
                 dir("${APP_PATH}") {
-
                     sh """
                         docker build -t ${IMAGE_NAME} .
                     """
@@ -127,16 +155,34 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
-
+        stage('Trivy Scan (Report)') {
             when {
-                expression {
-                    params.DEPLOY_TYPE == 'Canary Rollout'
-                }
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
             }
 
             steps {
+                sh """
+                    echo "Downloading Trivy HTML template..."
+                    wget -q https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
 
+                    echo "Generating Trivy report..."
+                    trivy image \
+                    --format template \
+                    --template "@html.tpl" \
+                    -o trivy-report.html \
+                    ${IMAGE_NAME}
+
+                    rm -f html.tpl
+                """
+            }
+        }
+
+        stage('Push Docker Image') {
+            when {
+                expression { params.DEPLOY_TYPE == 'Canary Rollout' }
+            }
+
+            steps {
                 sh """
                     docker push ${IMAGE_NAME}
                 """
@@ -164,11 +210,9 @@ pipeline {
                         git config user.email "jenkins@cu-final"
 
                         git add ${HELM_PATH}/values.yaml
-
                         git commit -m "update ${APP_NAME} image tag to ${IMAGE_TAG}" || echo "No changes"
 
                         git remote set-url origin https://${USER}:${PASS}@github.com/zoro2024/CU-MCA-final-project.git
-
                         git push origin ${params.BRANCH_NAME}
                     """
                 }
@@ -181,20 +225,9 @@ pipeline {
 
                 withCredentials([
 
-                    string(
-                        credentialsId: 'ARGOCD_SERVER',
-                        variable: 'ARGOCD_SERVER'
-                    ),
-
-                    string(
-                        credentialsId: 'ARGO_USER',
-                        variable: 'ARGO_USER'
-                    ),
-
-                    string(
-                        credentialsId: 'ARGO_PASS',
-                        variable: 'ARGO_PASS'
-                    ),
+                    string(credentialsId: 'ARGOCD_SERVER', variable: 'ARGOCD_SERVER'),
+                    string(credentialsId: 'ARGO_USER', variable: 'ARGO_USER'),
+                    string(credentialsId: 'ARGO_PASS', variable: 'ARGO_PASS'),
 
                     usernamePassword(
                         credentialsId: "${GIT_CREDENTIALS}",
@@ -222,41 +255,31 @@ pipeline {
 
                             sh """
                                 argocd app wait ${ARGOCD_APP_NAME} \
-                                --health \
-                                --sync \
-                                --timeout 300
+                                --health --sync --timeout 300
                             """
 
                             echo "Deployment successful"
+                        }
 
-                        } catch (Exception e) {
+                        catch (Exception e) {
 
-                            echo "Deployment failed. Starting Git rollback..."
+                            echo "Deployment failed. Rolling back..."
 
                             sh """
                                 git remote set-url origin https://${USER}:${PASS}@github.com/zoro2024/CU-MCA-final-project.git
 
                                 LAST_COMMIT=\$(git rev-parse HEAD)
 
-                                echo "Reverting commit: \$LAST_COMMIT"
-
                                 git revert --no-edit \$LAST_COMMIT
-
                                 git push origin ${params.BRANCH_NAME}
                             """
 
                             sh """
                                 argocd app sync ${ARGOCD_APP_NAME}
+                                argocd app wait ${ARGOCD_APP_NAME} --health --sync --timeout 300
                             """
 
-                            sh """
-                                argocd app wait ${ARGOCD_APP_NAME} \
-                                --health \
-                                --sync \
-                                --timeout 300
-                            """
-
-                            error("Deployment failed. Rollback completed.")
+                            error("Deployment failed after rollback")
                         }
                     }
                 }
@@ -276,10 +299,17 @@ pipeline {
 
         always {
 
+            script {
+                echo "Archiving security reports..."
+
+                archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'trivy-report.html', allowEmptyArchive: true
+            }
+
             sh """
                 docker rmi -f ${IMAGE_NAME} || true
             """
-            
+
             cleanWs()
         }
     }
