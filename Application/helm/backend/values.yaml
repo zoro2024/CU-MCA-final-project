@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/loglens-backend
-  tag: "953a67f-18"
+  tag: "b60f423-24"
   pullPolicy: IfNotPresent
 
 service:
@@ -39,7 +39,7 @@ job:
   name: loglens-migrate
   # job uses same backend image by default
   imageRepository: 432995435807.dkr.ecr.ap-south-1.amazonaws.com/cu-final/loglens-backend
-  tag: "953a67f-18"
+  tag: "b60f423-24"
 
 canary:
   steps:
