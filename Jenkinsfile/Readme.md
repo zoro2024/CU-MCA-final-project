@@ -1,4 +1,4 @@
-````
+
 # Jenkins Pipeline Setup for Application Deployment
 
 This guide explains how to configure and use the Jenkins pipeline for deploying applications using:
@@ -16,9 +16,9 @@ This guide explains how to configure and use the Jenkins pipeline for deploying 
 
 ## Architecture Overview
 
-```
+
 GitHub → Jenkins → Gitleaks Scan → SonarQube Analysis → Docker Build → Trivy Scan → AWS ECR → Helm Values Update → Git Push → ArgoCD Sync → Kubernetes Deployment
-````
+
 
 ## Prerequisites
 
