@@ -17,7 +17,7 @@ LogLens analyzes raw application logs, summarizes error patterns, assigns severi
 - Application README and developer docs: [Application/README.md](Application/README.md)
 - Helm snippets and ingress guidance: [Application/helm/README.md](Application/helm/README.md)
 - Kubernetes manifests (including ArgoCD apps): [Application/k8s/](Application/k8s/)
-- Secret template (update and apply): [Application/k8s/loglens-secret.yaml](Application/k8s/loglens-secret.yaml)
+- Secret template (update and apply): [Application/k8s/loglens-secret.yaml](Application/k8s/loglens-secrets.yaml)
 - Tools install guides (Postgres, Redis, metrics, etc.): [Tools-installation/](Tools-installation/)
 - Terraform infra code: [Terraform-infra/](Terraform-infra/)
 
