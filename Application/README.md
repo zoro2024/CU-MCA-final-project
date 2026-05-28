@@ -1,5 +1,7 @@
 # LogLens AI
 
+![alt text](./Tools-installation/images/example.png)
+
 A compact LogLens application combining a FastAPI backend, a React/Vite frontend, and deployment artifacts for Docker Compose, Helm charts, and raw Kubernetes manifests.
 
 **What this repo contains**
