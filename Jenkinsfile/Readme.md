@@ -1,4 +1,5 @@
-# Jenkins CI/CD Pipeline Setup for Application Deployment
+````md
+# Jenkins Pipeline Setup for Application Deployment
 
 This guide explains how to configure and use the Jenkins pipeline for deploying applications using:
 
@@ -9,47 +10,126 @@ This guide explains how to configure and use the Jenkins pipeline for deploying 
 - Helm
 - Kubernetes
 - Argo Rollouts
+- SonarQube
+- Trivy
+- Gitleaks
 
----
-
-# Architecture Overview
-
-Flow:
+## Architecture Overview
 
 ```text
-GitHub → Jenkins → Docker Build → AWS ECR → Helm Values Update → Git Push → ArgoCD Sync → Kubernetes Deployment
-```
+GitHub → Jenkins → Gitleaks Scan → SonarQube Analysis → Docker Build → Trivy Scan → AWS ECR → Helm Values Update → Git Push → ArgoCD Sync → Kubernetes Deployment
+````
 
----
-
-# Prerequisites
+## Prerequisites
 
 Make sure the following are configured:
 
-- Jenkins installed
-- Docker installed on Jenkins agent
-- AWS CLI configured
-- ArgoCD CLI installed on Jenkins server
-- GitHub repository access configured
-- ArgoCD configured and connected to cluster
-- Kubernetes cluster running
-- AWS ECR repository exists
+* Jenkins installed
+* Docker installed on Jenkins agent
+* AWS CLI configured
+* ArgoCD CLI installed on Jenkins server
+* GitHub repository access configured
+* ArgoCD configured and connected to cluster
+* Kubernetes cluster running
+* AWS ECR repository exists
+* SonarQube server configured
+* Sonar Scanner configured in Jenkins
 
----
-
-# Required Jenkins Plugins
+## Required Jenkins Plugins
 
 Install the following Jenkins plugins:
 
-- Git Plugin
-- Credentials Binding Plugin
-- Pipeline Plugin
-- Workspace Cleanup Plugin
-- Docker Pipeline Plugin
+* Git Plugin
+* Credentials Binding Plugin
+* Pipeline Plugin
+* Workspace Cleanup Plugin
+* Docker Pipeline Plugin
+* SonarQube Scanner Plugin
 
----
+## Security & Code Quality Tools
 
-# Jenkins Credentials Configuration
+| Tool      | Purpose                                 |
+| --------- | --------------------------------------- |
+| Gitleaks  | Detects hardcoded secrets               |
+| SonarQube | Performs static code analysis           |
+| Trivy     | Scans Docker images for vulnerabilities |
+
+## One-Time Jenkins Server Setup
+
+### Install Trivy
+
+Follow the official [Trivy installation documentation](https://trivy.dev/docs/latest/getting-started/installation/).
+
+### Install Gitleaks
+
+Follow the [Gitleaks installation guide for Ubuntu](https://lindevs.com/install-gitleaks-on-ubuntu).
+
+## Configure SonarQube in Jenkins
+
+### Step 1 — Install SonarQube Plugin
+
+Go to:
+
+```text
+Manage Jenkins → Plugins
+```
+
+Install:
+
+```text
+SonarQube Scanner Plugin
+```
+
+### Step 2 — Configure SonarQube Server
+
+Go to:
+
+```text
+Manage Jenkins → System
+```
+
+Find:
+
+```text
+SonarQube Servers
+```
+
+Add:
+
+| Field                | Example                        |
+| -------------------- | ------------------------------ |
+| Name                 | prod-sonarqube                 |
+| Server URL           | http://<sonarqube-server>:9000 |
+| Authentication Token | sonar-token                    |
+
+### Step 3 — Configure Sonar Scanner Tool
+
+Go to:
+
+```text
+Manage Jenkins → Tools
+```
+
+Find:
+
+```text
+SonarQube Scanner
+```
+
+Add:
+
+| Field   | Example        |
+| ------- | -------------- |
+| Name    | prod-sonarqube |
+| Version | Latest         |
+
+This name must match the pipeline configuration:
+
+```groovy
+SONAR_SCANNER_HOME = tool 'prod-sonarqube'
+```
+
+## Jenkins Credentials Configuration
 
 Go to:
 
@@ -59,236 +139,211 @@ Jenkins Dashboard → Manage Jenkins → Credentials
 
 Create the following credentials.
 
----
+### 1. GitHub Credentials
 
-# 1. GitHub Credentials
-
-## Credential Type
+#### Credential Type
 
 ```text
 Username with password
 ```
 
-## Credential ID
+#### Credential ID
 
 ```text
 github-credentials
 ```
 
-## Example Values
+### Example Values
 
-| Field | Value |
-|---|---|
-| Username | github-username |
+| Field    | Value                        |
+| -------- | ---------------------------- |
+| Username | github-username              |
 | Password | github-personal-access-token |
 
----
+### 2. ArgoCD Server
 
-# 2. ArgoCD Server
-
-## Credential Type
+#### Credential Type
 
 ```text
 Secret text
 ```
 
-## Credential ID
+#### Credential ID
 
 ```text
 ARGOCD_SERVER
 ```
 
-## Example Value
+#### Example Value
 
 ```text
 argocd.example.com:80
 ```
 
----
+### 3. ArgoCD Username
 
-# 3. ArgoCD Username
-
-## Credential Type
+#### Credential Type
 
 ```text
 Secret text
 ```
 
-## Credential ID
+#### Credential ID
 
 ```text
 ARGO_USER
 ```
 
-## Example Value
+#### Example Value
 
 ```text
 admin
 ```
 
----
+### 4. ArgoCD Password
 
-# 4. ArgoCD Password
-
-## Credential Type
+#### Credential Type
 
 ```text
 Secret text
 ```
 
-## Credential ID
+#### Credential ID
 
 ```text
 ARGO_PASS
 ```
 
-## Example Value
+#### Example Value
 
 ```text
 your-argocd-password
 ```
 
----
+## Jenkins Pipeline Variables
 
-# Required AWS Permissions
+| Variable           | Description                |
+| ------------------ | -------------------------- |
+| APP_NAME           | Application name           |
+| AWS_REGION         | AWS region                 |
+| AWS_ACCOUNT_ID     | AWS account ID             |
+| ECR_REPO           | ECR repository name        |
+| REGISTRY           | AWS ECR registry           |
+| ECR_URI            | Full ECR image URI         |
+| APP_PATH           | Docker build path          |
+| HELM_PATH          | Helm chart path            |
+| GIT_REPO           | GitHub repository          |
+| GIT_CREDENTIALS    | Jenkins Git credentials ID |
+| ARGOCD_APP_NAME    | ArgoCD application name    |
+| SONAR_SCANNER_HOME | Sonar Scanner tool         |
 
-The Jenkins server/user should have permissions for:
-
-- ECR Push/Pull
-- EKS Access
-- IAM Read Access
-- STS Access
-
-Minimum services:
-
-- ECR
-- EKS
-- EC2
-- STS
-
----
-
-# Create ECR Repository
-
-Example:
-
-```bash
-aws ecr create-repository \
-  --repository-name project/application-name \
-  --region <aws-region>
-```
-
----
-
-# Jenkins Pipeline Variables
-
-The pipeline uses the following environment variables:
-
-| Variable | Description |
-|---|---|
-| APP_NAME | Application name |
-| AWS_REGION | AWS region |
-| AWS_ACCOUNT_ID | AWS account ID |
-| ECR_REPO | ECR repository name |
-| REGISTRY | AWS ECR registry |
-| ECR_URI | Full ECR image URI |
-| APP_PATH | Docker build path |
-| HELM_PATH | Helm chart path |
-| GIT_REPO | GitHub repository |
-| GIT_CREDENTIALS | Jenkins Git credentials ID |
-| ARGOCD_APP_NAME | ArgoCD application name |
-
----
-
-# Example Environment Variables
+## Example Environment Variables
 
 ```groovy
 environment {
-
-    APP_NAME        = "application-name"
-    AWS_REGION      = "ap-south-1"
-    AWS_ACCOUNT_ID  = "<aws-account-id>"
-
-    ECR_REPO        = "project/application-name"
-
-    REGISTRY        = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-
-    ECR_URI         = "${REGISTRY}/${ECR_REPO}"
-
-    APP_PATH        = "Application/backend"
-
-    HELM_PATH       = "Application/helm/backend"
-
-    GIT_REPO        = "https://github.com/<github-user>/<repository>.git"
-
+    APP_NAME = "application-name"
+    AWS_REGION = "ap-south-1"
+    AWS_ACCOUNT_ID = "<aws-account-id>"
+    ECR_REPO = "project/application-name"
+    REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    ECR_URI = "${REGISTRY}/${ECR_REPO}"
+    APP_PATH = "Application/backend"
+    HELM_PATH = "Application/helm/backend"
+    GIT_REPO = "https://github.com/<github-user>/<repository>.git"
     GIT_CREDENTIALS = "github-credentials"
-
     ARGOCD_APP_NAME = "application-name"
+    SONAR_SCANNER_HOME = tool 'prod-sonarqube'
 }
 ```
 
----
+## Deployment Types
 
-# Deployment Types
-
-The pipeline supports two deployment modes.
-
----
-
-# 1. Canary Rollout
+### 1. Canary Rollout
 
 This mode:
 
-- Pulls latest code
-- Builds Docker image
-- Pushes image to ECR
-- Updates Helm values
-- Triggers ArgoCD sync
+* Pulls latest code
+* Runs Gitleaks scan
+* Runs SonarQube analysis
+* Builds Docker image
+* Runs Trivy image scan
+* Pushes image to ECR
+* Updates Helm values
+* Triggers ArgoCD sync
 
----
-
-# 2. Rollout Existing Tag
+### 2. Rollout Existing Tag
 
 This mode:
 
-- Uses existing Docker image tag
-- Skips Docker build
-- Updates Helm values
-- Triggers ArgoCD sync
+* Uses existing Docker image tag
+* Skips Docker build
+* Updates Helm values
+* Triggers ArgoCD sync
 
----
+## Jenkins Pipeline Parameters
 
-# Jenkins Pipeline Parameters
-
-| Parameter | Description |
-|---|---|
-| DEPLOY_TYPE | Deployment mode |
-| BRANCH_NAME | Git branch |
+| Parameter    | Description        |
+| ------------ | ------------------ |
+| DEPLOY_TYPE  | Deployment mode    |
+| BRANCH_NAME  | Git branch         |
 | ROLL_OUT_TAG | Existing image tag |
 
----
+## Example Parameters
 
-# Example Parameters
+| Parameter    | Example        |
+| ------------ | -------------- |
+| DEPLOY_TYPE  | Canary Rollout |
+| BRANCH_NAME  | main           |
+| ROLL_OUT_TAG | v1.0.2         |
 
-| Parameter | Example |
-|---|---|
-| DEPLOY_TYPE | Canary Rollout |
-| BRANCH_NAME | main |
-| ROLL_OUT_TAG | v1.0.2 |
+## Pipeline Security Stages
 
----
+### 1. Gitleaks Scan
 
-# How Deployment Works
+Detects:
 
----
+* Hardcoded passwords
+* API keys
+* Tokens
+* Secrets
 
-# Step 1 — Checkout Code
+Report generated:
+
+```text
+gitleaks-report.json
+```
+
+### 2. SonarQube Analysis
+
+Performs:
+
+* Static code analysis
+* Code smell detection
+* Bug detection
+* Security issue detection
+* Quality gate checks
+
+### 3. Trivy Image Scan
+
+Scans Docker image for:
+
+* OS package vulnerabilities
+* Critical CVEs
+* High severity vulnerabilities
+
+Report generated:
+
+```text
+trivy-report.html
+```
+
+## How Deployment Works
+
+### Step 1 — Checkout Code
 
 Pipeline clones repository from GitHub.
 
----
-
-# Step 2 — Generate Image Tag
+### Step 2 — Generate Image Tag
 
 Example generated tag:
 
@@ -302,34 +357,36 @@ Format:
 <git-commit-short-hash>-<build-number>
 ```
 
----
+### Step 3 — Run Gitleaks Scan
 
-# Step 3 — Login to AWS ECR
+Pipeline scans the repository for hardcoded secrets.
+
+### Step 4 — Run SonarQube Analysis
+
+Pipeline performs static code analysis using SonarQube.
+
+### Step 5 — Login to AWS ECR
 
 Pipeline authenticates Docker with AWS ECR.
-
-Command used:
 
 ```bash
 aws ecr get-login-password --region <aws-region> | \
 docker login --username AWS --password-stdin <ecr-registry>
 ```
 
----
-
-# Step 4 — Build Docker Image
+### Step 6 — Build Docker Image
 
 Pipeline builds Docker image from application directory.
 
----
+### Step 7 — Run Trivy Image Scan
 
-# Step 5 — Push Docker Image
+Pipeline scans Docker image vulnerabilities and generates HTML report.
+
+### Step 8 — Push Docker Image
 
 Docker image pushed to ECR repository.
 
----
-
-# Step 6 — Update Helm Values
+### Step 9 — Update Helm Values
 
 Pipeline updates:
 
@@ -343,17 +400,11 @@ Example:
 tag: "a1b2c3d-25"
 ```
 
----
-
-# Step 7 — Push Changes to GitHub
+### Step 10 — Push Changes to GitHub
 
 Pipeline commits updated Helm values and pushes to GitHub.
 
----
-
-# Step 8 — Sync ArgoCD
-
-Pipeline executes:
+### Step 11 — Sync ArgoCD
 
 ```bash
 argocd login <argocd-server> \
@@ -364,234 +415,18 @@ argocd login <argocd-server> \
   --skip-test-tls
 ```
 
-Then:
-
 ```bash
 argocd app sync <argocd-app-name>
 ```
 
----
-
-# Step 9 — Wait for Deployment Health
+### Step 12 — Wait for Deployment Health
 
 Pipeline waits until deployment becomes healthy.
 
----
-
-# Automatic Rollback
+## Automatic Rollback
 
 If deployment fails:
 
-- Git commit automatically reverted
-- Helm values rollback triggered
-- ArgoCD sync executed again
-
-This provides automatic GitOps rollback.
-
----
-
-# Jenkins Pipeline Setup
-
----
-
-# 1. Create Pipeline Job
-
-Go to:
-
-```text
-Jenkins Dashboard → New Item
-```
-
-Select:
-
-```text
-Pipeline
-```
-
----
-
-# 2. Configure Git Repository
-
-Repository:
-
-```text
-https://github.com/<github-user>/<repository>.git
-```
-
-Branch:
-
-```text
-main
-```
-
----
-
-# 3. Add Jenkinsfile
-
-Add your Jenkins pipeline script inside:
-
-```text
-Jenkinsfile
-```
-
----
-
-# ArgoCD Requirements
-
-ArgoCD application should already exist.
-
-Example:
-
-```bash
-argocd app list
-```
-
-Verify app:
-
-```text
-<application-name>
-```
-
----
-
-# Required Tools on Jenkins Agent
-
-Install:
-
-- Docker
-- AWS CLI
-- kubectl
-- argocd CLI
-- git
-
----
-
-# Verify Docker Access
-
-```bash
-docker ps
-```
-
----
-
-# Verify AWS Access
-
-```bash
-aws sts get-caller-identity
-```
-
----
-
-# Verify ArgoCD Access
-
-```bash
-argocd version
-```
-
----
-
-# Useful Commands
-
----
-
-# View Jenkins Workspace
-
-```bash
-pwd
-ls -la
-```
-
----
-
-# View Docker Images
-
-```bash
-docker images
-```
-
----
-
-# Check ECR Images
-
-```bash
-aws ecr list-images \
-  --repository-name <repository-name>
-```
-
----
-
-# Check ArgoCD App Status
-
-```bash
-argocd app get <application-name>
-```
-
----
-
-# Sync ArgoCD App Manually
-
-```bash
-argocd app sync <application-name>
-```
-
----
-
-# Restart Jenkins
-
-```bash
-sudo systemctl restart jenkins
-```
-
----
-
-# Troubleshooting
-
----
-
-# Docker Permission Denied
-
-Fix:
-
-```bash
-sudo usermod -aG docker jenkins
-sudo systemctl restart jenkins
-```
-
----
-
-# ArgoCD Login Failed
-
-Verify:
-
-- ArgoCD server reachable
-- Correct credentials configured
-- `--grpc-web` enabled
-- `server.insecure=true` configured in ArgoCD
-
----
-
-# ECR Push Failed
-
-Verify:
-
-- AWS credentials configured
-- ECR repository exists
-- IAM permissions available
-
----
-
-# ArgoCD Sync Failed
-
-Check:
-
-```bash
-argocd app get <application-name>
-```
-
-And:
-
-```bash
-kubectl get pods -A
-```
-
-
+* Git commit automatically reverted
+* Helm values rollback triggered
+* ArgoCD sync executed again
