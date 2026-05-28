@@ -163,13 +163,3 @@ helm upgrade --install loglens-frontend ./helm/frontend \
 **Tips & troubleshooting**
 - If the backend shows DB connection errors, verify `DATABASE_URL` and that Postgres is reachable from the cluster.
 - If the AI calls fail, confirm `GEMINI_API_KEY`, `GEMINI_BASE_URL`, and `GEMINI_MODEL` are set and reachable from the environment where the backend runs.
-
-
---------------------------------------------------------------------------------
-
-If you'd like, I can:
-- add a short `helm/README.md` with exact `values.yaml` snippets for secrets and ingress, or
-- show exact `kubectl` commands for your cloud provider (EKS/GKE).
-
----
-Updated README to include clearer setup steps, secret guidance, and deployment order.
