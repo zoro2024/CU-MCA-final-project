@@ -1,7 +1,7 @@
 const http = require('http');
 const httpProxy = require('http-proxy');
 
-const TARGET = process.env.TARGET || 'http://shared-alb-188398176.us-east-1.elb.amazonaws.com';
+const TARGET = process.env.TARGET || 'alb.domain.com';
 const HOST_HEADER = process.env.HOST_HEADER || 'loglens.cu-final.app';
 const PORT = process.env.PORT || 8080;
 
