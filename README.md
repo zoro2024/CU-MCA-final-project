@@ -1,6 +1,6 @@
 # LogLens — MCA Final Project
 
-![alt text](./Tools-installation/images/Screenshot from 2026-05-28 06-00-35.png)
+![alt text](./Tools-installation/images/ui.png)
 
 🎓 **MCA Final Semester Project (Chandigarh University)**
 
