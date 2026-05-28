@@ -34,16 +34,6 @@ This guide explains how to deploy PostgreSQL on Kubernetes using the Bitnami Hel
 
 ---
 
-# PostgreSQL Images
-
-## PostgreSQL Kubernetes Deployment Examples
-
-![PostgreSQL Kubernetes](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*JxRDg7s89hGkw_ghH9PWtw.png)
-
-![Bitnami PostgreSQL](hhttps://miro.medium.com/v2/resize:fit:1400/format:webp/1*ScatetN5BZTzduvWMlVY6A.jpeg)
-
----
-
 # Prerequisites
 
 - Kubernetes Cluster

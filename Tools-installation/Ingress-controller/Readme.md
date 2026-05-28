@@ -4,7 +4,37 @@ This guide explains how to install and configure the AWS Load Balancer Controlle
 
 ---
 
-## Prerequisites
+# Architecture Overview
+
+- AWS Load Balancer Controller deployed on Amazon EKS
+- IAM Roles for Service Accounts (IRSA) used for secure AWS access
+- Application Load Balancers (ALB) automatically provisioned through Kubernetes Ingress
+- Public and private subnet support
+- Helm used for deployment and lifecycle management
+
+---
+
+# Public References
+
+## AWS Load Balancer Controller Documentation
+
+[AWS Load Balancer Controller Documentation](https://kubernetes-sigs.github.io/aws-load-balancer-controller/)
+
+## Amazon EKS Documentation
+
+[Amazon EKS Documentation](https://docs.aws.amazon.com/eks/)
+
+## eksctl Documentation
+
+[eksctl Documentation](https://eksctl.io/)
+
+## Helm Documentation
+
+[Helm Documentation](https://helm.sh/docs/)
+
+---
+
+# Prerequisites
 
 Make sure the following tools are installed and configured:
 
@@ -16,7 +46,7 @@ Make sure the following tools are installed and configured:
 Also ensure:
 
 - An EKS cluster already exists
-- kubectl is connected to the cluster
+- `kubectl` is connected to the cluster
 - Required IAM permissions are available
 
 ---
@@ -37,7 +67,7 @@ cluster_name=my-eks-cluster
 
 # 2. Associate IAM OIDC Provider
 
-Fetch the OIDC ID:
+## Fetch OIDC ID
 
 ```bash
 oidc_id=$(aws eks describe-cluster \
@@ -48,7 +78,9 @@ oidc_id=$(aws eks describe-cluster \
 echo $oidc_id
 ```
 
-Associate the IAM OIDC provider:
+---
+
+## Associate IAM OIDC Provider
 
 ```bash
 eksctl utils associate-iam-oidc-provider \
@@ -78,13 +110,15 @@ aws iam create-policy \
 
 # 5. Create IAM Service Account
 
-Fetch AWS Account ID:
+## Fetch AWS Account ID
 
 ```bash
 aws_account_id=$(aws sts get-caller-identity --query Account --output text)
 ```
 
-Create the IAM service account:
+---
+
+## Create IAM Service Account
 
 ```bash
 eksctl create iamserviceaccount \
@@ -102,6 +136,8 @@ eksctl create iamserviceaccount \
 
 AWS Load Balancer Controller discovers subnets using tags.
 
+---
+
 ## Public Subnets (Internet-facing ALB)
 
 ```bash
@@ -111,6 +147,8 @@ aws ec2 create-tags \
     Key=kubernetes.io/role/elb,Value=1 \
     Key=kubernetes.io/cluster/$cluster_name,Value=shared
 ```
+
+---
 
 ## Private Subnets (Internal ALB)
 
@@ -163,13 +201,15 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 
 # 10. Verify Installation
 
-Check deployment:
+## Check Deployment
 
 ```bash
 kubectl get deployment -n kube-system aws-load-balancer-controller
 ```
 
-Check pods:
+---
+
+## Check Pods
 
 ```bash
 kubectl get pods -n kube-system | grep aws-load-balancer-controller
@@ -195,11 +235,89 @@ kubectl get ingress
 kubectl logs -n kube-system deployment/aws-load-balancer-controller
 ```
 
+---
+
 ## Describe Ingress
 
 ```bash
 kubectl describe ingress <ingress-name>
 ```
+
+---
+
+## Restart AWS Load Balancer Controller
+
+```bash
+kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+```
+
+---
+
+## Get Service Account
+
+```bash
+kubectl get serviceaccount aws-load-balancer-controller -n kube-system
+```
+
+---
+
+## Verify IAM Role Annotation
+
+```bash
+kubectl describe serviceaccount aws-load-balancer-controller -n kube-system
+```
+
+---
+
+# Troubleshooting
+
+## ALB Not Getting Created
+
+Verify:
+
+- Subnets are tagged correctly
+- IAM permissions are attached properly
+- Controller pods are running
+- Ingress annotations are configured properly
+
+Check logs:
+
+```bash
+kubectl logs -n kube-system deployment/aws-load-balancer-controller
+```
+
+---
+
+## Controller Pod CrashLoopBackOff
+
+Check:
+
+```bash
+kubectl describe pod <pod-name> -n kube-system
+kubectl logs <pod-name> -n kube-system
+```
+
+Verify:
+
+- IRSA configured properly
+- OIDC provider exists
+- IAM role attached correctly
+
+---
+
+## Ingress Stuck Without Address
+
+Check:
+
+```bash
+kubectl describe ingress <ingress-name>
+```
+
+Verify:
+
+- Correct ingress class used
+- Security groups allow traffic
+- Subnets tagged properly
 
 ---
 
@@ -213,3 +331,22 @@ kubectl describe ingress <ingress-name>
 - Private subnets are used for internal ALBs.
 
 ---
+
+# Recommended Production Enhancements
+
+- Use WAF with ALB
+- Enable access logs
+- Configure SSL/TLS certificates using ACM
+- Use external-dns for automatic DNS management
+- Enable Prometheus monitoring
+- Configure PodDisruptionBudgets
+- Use dedicated node groups for system workloads
+
+---
+
+# Useful Official Documentation
+
+- [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/)
+- [Amazon EKS Documentation](https://docs.aws.amazon.com/eks/)
+- [eksctl Documentation](https://eksctl.io/)
+- [Helm Documentation](https://helm.sh/docs/)
