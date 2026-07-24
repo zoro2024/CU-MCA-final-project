@@ -55,7 +55,7 @@ docker build -t <registry>/loglens-frontend:TAG Application/frontend
 docker push <registry>/loglens-frontend:TAG
 ```
 
-6. (Optional) CI/CD: the repository contains Jenkinsfiles — update variables in the Jenkinsfile(s) and run your pipeline from your Jenkins instance (see `Jenkinsfile/` folders). You can automate the image build/push and Helm upgrades via CI.
+6. CI/CD: the repository contains Jenkinsfiles — update variables in the Jenkinsfile(s) and run your pipeline from your Jenkins instance (see `Jenkinsfile/` folders). You can automate the image build/push and Helm upgrades via CI.
 
 Deployment option note: you can deploy the application using Helm charts (`Application/helm`) or the raw Kubernetes manifests under `Application/k8s/` (`k8s/backend`, `k8s/frontend`). Choose the approach that fits your workflow and update image references/values accordingly.
 
